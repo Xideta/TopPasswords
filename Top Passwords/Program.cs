@@ -32,8 +32,8 @@ namespace TopPasswords
 			Console.WriteLine("1. Top 100 Raw");						// Top 100 (or less if there aren't 100 entries) without altering data
 			Console.WriteLine("2. Top 100 Cleaned");					// Top 100 (or less) with only one occurrence of same user/pass form a single file
 			Console.WriteLine("3. Top 100 Cleaned and Blacklisted");	// -||- cleaned and applied a blacklist of all .txt files in /Blacklist
-			Console.WriteLine("4. Domain Specific Info");				// TODO Make this
-			Console.WriteLine("5. Count Unilogin (with top)");			// TODO Make this
+			Console.WriteLine("4. Domain Specific Info");				// Prints information about specific domains.
+			Console.WriteLine("5. Count Unilogin (with top)");			// Prints passwords matching the patteron of a UniLogin
 
 			var command = Console.ReadLine();
 			switch (command)
