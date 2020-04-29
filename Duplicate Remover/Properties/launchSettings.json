@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Duplicate Remover": {
+      "commandName": "Project",
+      "commandLineArgs": "E:\\DanishCombo"
+    }
+  }
+}
