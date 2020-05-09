@@ -12,9 +12,16 @@ namespace TopPasswords
 	internal class Program
 	{
 
-		private static Regex _regex = new Regex( @"^(?<email>(?:[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+)*|""(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*"")\.?@[^:;@]+\.dk)(?<sep>[:;\ ])(?<password>.+)$", RegexOptions.IgnoreCase);
+		private static Regex _regex = new Regex(
+			@"^(?<email>(?:[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+\/=?^_`{|}~-]+)*|""(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*"")\.?@[^:;@]+\.dk)(?<sep>[:;\ ])(?<password>.+)$",
+			RegexOptions.IgnoreCase);
+
 		private static string[] _dataFiles;
 		private static string _root;
+
+		private const string Raw = ".filt";
+		private const string Clean = ".fil2";
+
 
 		private static void Main(string[] args)
 		{
@@ -26,32 +33,38 @@ namespace TopPasswords
 			}
 
 			_root = args[0];
-			_dataFiles = Directory.GetFiles(_root+"/DanishCombo");
+			_dataFiles = Directory.GetFiles(_root + "/DanishCombo");
 			Console.WriteLine("Please select an option:");
 			Console.WriteLine();
-			Console.WriteLine("1. Top 100 Raw");						// Top 100 (or less if there aren't 100 entries) without altering data
-			Console.WriteLine("2. Top 100 Cleaned");					// Top 100 (or less) with only one occurrence of same user/pass form a single file
-			Console.WriteLine("3. Top 100 Cleaned and Blacklisted");	// -||- cleaned and applied a blacklist of all .txt files in /Blacklist
-			Console.WriteLine("4. Domain Specific Info");				// Prints information about specific domains.
-			Console.WriteLine("5. Count Unilogin (with top)");			// Prints passwords matching the patteron of a UniLogin
+			Console.WriteLine("1. Top 100 Raw"); // Top 100 (or less if there aren't 100 entries) without altering data
+			Console.WriteLine(
+				"2. Top 100 Cleaned"); // Top 100 (or less) with only one occurrence of same user/pass form a single file
+			Console.WriteLine(
+				"3. Top 100 Cleaned and Blacklisted"); // -||- cleaned and applied a blacklist of all .txt files in /Blacklist
+			Console.WriteLine("4. Domain Specific Info"); // Prints information about specific domains.
+			Console.WriteLine("5. Count Unilogin (with top)"); // Prints passwords matching the pattern of a UniLogin¨
+			Console.WriteLine("6. Give statistics over users");
 
 			var command = Console.ReadLine();
 			switch (command)
 			{
 				case "1":
-					PrintTopToTSV(TopRaw());
+					PrintTopToTSV(GetTop(Raw));
 					break;
 				case "2":
-					PrintTopToTSV(TopClean());
+					PrintTopToTSV(GetTop(Clean));
 					break;
 				case "3":
-					PrintTopToTSV(BlackList(TopClean()));
+					PrintTopToTSV(BlackList(GetTop(Clean)));
 					break;
 				case "4":
 					PrintDomainsToTSV(Domains());
 					break;
 				case "5":
 					PrintTopToTSV(UniLogin());
+					break;
+				case "6":
+					GetAndPrintStatistics(Clean);
 					break;
 				default:
 					Console.WriteLine("Input not understood. Terminating.");
@@ -63,13 +76,13 @@ namespace TopPasswords
 
 		}
 
-		private static IDictionary<string,long> TopRaw()
+		private static IDictionary<string, long> GetTop(string filetype)
 		{
 			var dict = new Dictionary<string, long>();
 			foreach (var file in _dataFiles)
 			{
-				if(!file.EndsWith(".filt")) continue;
-				foreach(var line in File.ReadLines(file))
+				if (!file.EndsWith(filetype)) continue;
+				foreach (var line in File.ReadLines(file))
 				{
 					var matches = _regex.Match(line);
 					var pass = matches.Groups["password"].Value;
@@ -81,29 +94,11 @@ namespace TopPasswords
 			return dict;
 		}
 
-		private static IDictionary<string,long> TopClean()
-		{
-			var dict = new Dictionary<string, long>();
-			// Count passwords
-			foreach (var file in _dataFiles)
-			{
-				if(!file.EndsWith(".fil2")) continue;
-				foreach(var line in File.ReadLines(file))
-				{
-					var matches = _regex.Match(line);
-					var pass = matches.Groups["password"].Value;
-					dict.TryGetValue(pass, out var count);
-					dict[pass] = count + 1;
-				}
-			}
-
-			return dict;
-		}
 
 		private static IDictionary<string, long> BlackList(IDictionary<string, long> dictionary)
 		{
 			var blacklist = new HashSet<string>();
-			foreach (var file in Directory.GetFiles(_root+"/Blacklist"))
+			foreach (var file in Directory.GetFiles(_root + "/Blacklist"))
 			{
 				blacklist.UnionWith(File.ReadLines(file));
 			}
@@ -123,17 +118,18 @@ namespace TopPasswords
 			// Count passwords
 			foreach (var file in _dataFiles)
 			{
-				if(!file.EndsWith(".fil2")) continue;
-				foreach(var line in File.ReadLines(file))
+				if (!file.EndsWith(".fil2")) continue;
+				foreach (var line in File.ReadLines(file))
 				{
 					var matches = _regex.Match(line);
 					var pass = matches.Groups["password"].Value;
-					if(!uniloginRegex.IsMatch(pass)) continue;
+					if (!uniloginRegex.IsMatch(pass)) continue;
 					pass = pass.ToLower();
 					dict.TryGetValue(pass, out var count);
 					dict[pass] = count + 1;
 				}
 			}
+
 			Console.WriteLine(dict.Count);
 			return dict;
 		}
@@ -143,8 +139,8 @@ namespace TopPasswords
 			var inverse = new Dictionary<long, HashSet<string>>();
 			foreach (KeyValuePair<string, long> item in topRaw)
 			{
-				
-				if(!inverse.TryGetValue(item.Value, out var pass)) pass = new HashSet<string>();
+
+				if (!inverse.TryGetValue(item.Value, out var pass)) pass = new HashSet<string>();
 				pass.Add(item.Key);
 				inverse[item.Value] = pass;
 			}
@@ -159,23 +155,24 @@ namespace TopPasswords
 				Console.Write(entry.Key);
 				foreach (var password in entry.Value)
 				{
-					Console.Write("\t"+ password);
+					Console.Write("\t" + password);
 				}
+
 				Console.WriteLine();
 			}
 
 		}
 
-		private static IDictionary<string, IDictionary<string,IList<string>>> Domains()
+		private static IDictionary<string, IDictionary<string, IList<string>>> Domains()
 		{
 			var domains = File.ReadLines(_root + "/DanishDomains.txt").ToList().Where(s => !s.StartsWith("#")).ToList();
 
-			var dict = new Dictionary<string, IDictionary<string,IList<string>>>();
+			var dict = new Dictionary<string, IDictionary<string, IList<string>>>();
 			// Count passwords
 			foreach (var file in _dataFiles)
 			{
-				if(!file.EndsWith(".fil2")) continue;
-				foreach(var line in File.ReadLines(file))
+				if (!file.EndsWith(".fil2")) continue;
+				foreach (var line in File.ReadLines(file))
 				{
 					var matches = _regex.Match(line);
 					var email = matches.Groups["email"].Value;
@@ -184,9 +181,9 @@ namespace TopPasswords
 					var pass = matches.Groups["password"].Value;
 
 					dict.TryGetValue(domain, out var domainDict);
-					if(domainDict==null) domainDict = new Dictionary<string, IList<string>>();
+					if (domainDict == null) domainDict = new Dictionary<string, IList<string>>();
 					domainDict.TryGetValue(email, out var passList);
-					if(passList == null) passList = new List<string>();
+					if (passList == null) passList = new List<string>();
 					passList.Add(pass);
 					domainDict[email] = passList;
 					dict[domain] = domainDict;
@@ -208,10 +205,39 @@ namespace TopPasswords
 					{
 						Console.Write("\t" + pass);
 					}
+
 					Console.WriteLine();
 				}
+
 				Console.WriteLine();
 			}
+		}
+
+		private static void GetAndPrintStatistics(string filetype)
+		{
+			var combos = new Dictionary<string, ISet<string>>();
+			foreach (var file in _dataFiles)
+			{
+				if (!file.EndsWith(filetype)) continue;
+				foreach (var line in File.ReadLines(file))
+				{
+					var matches = _regex.Match(line);
+					var email = matches.Groups["email"].Value;
+					var pass = matches.Groups["password"].Value;
+					combos.TryGetValue(email, out var passwords);
+					if (passwords == null) passwords = new HashSet<string>();
+					passwords.Add(pass);
+					combos[email] = passwords;
+				}
+			}
+
+			var averageUnique = combos.Select(x => x.Value.Count).Average();
+			var averageLength =combos.SelectMany(x => x.Value.Select( y => y.Length)).Average();
+			
+			Console.WriteLine("Average Unique:\t"+ averageUnique);
+			Console.WriteLine("Average Length:\t"+averageLength);
+
+
 		}
 	}
 }
